@@ -11,7 +11,8 @@ var serviceAccount = require("./config.json");
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    storageBucket: "fileshraingapp.appspot.com"
+    storageBucket: "fileshraingapp.appspot.com",
+    // databaseURL: "https://console.firebase.google.com/u/0/project/fileshraingapp/firestore/data/~2FUser~2Fha2pnZOOrtd9LWyl33Of"
   });
  
 const app = express();
@@ -24,11 +25,6 @@ const storageRef = admin.storage().bucket();
 const bucket = admin.storage().bucket();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.get("/api", (req,res)=> {
-    res.json({"users": [ "userone", "usertwo", "userthree" ]})
-})
  
  
 app.get("/gallery", async (req, res) => {
@@ -47,23 +43,13 @@ app.get("/gallery", async (req, res) => {
         expires: '03-01-2500' // Adjust the expiry date as needed
       });
 
-      console.log(metadata.name, downloadURL[0]);
+      // console.log(metadata.name, downloadURL[0]);
 
       files.push({
         filename: metadata.name,
         downloadURL: downloadURL[0]
       });
     }
-
-    // Log the files to the console
-    console.log("Files:");
-    files.forEach(file => {
-      console.log(file);
-    });
-
-    // Generate the HTML content dynamically
-    
-
     res.send(files); // Send the dynamically generated HTML content as the response
   } catch (error) {
     console.error("Error fetching image URLs:", error);
@@ -73,104 +59,40 @@ app.get("/gallery", async (req, res) => {
 
 
 app.post('/add', upload.single('file'), async (req, res) => {
-    try {
-      const { filename, user } = req.body;
-      const file = req.file;
-  
-      // Check if a file with the same filename already exists
-      const existingFiles = await bucket.getFiles({
-        prefix: `files/${filename}`
-      });
-  
-      if (existingFiles[0].length > 0) {
-        return res.status(400).send('File with the same filename already exists');
-      }
-  
-      // Generate a unique filename using UUID
-      const uniqueFilename = `${uuidv4()}_${filename}_${user}`;
-  
-      // Upload the file to Firebase Storage
-      const blob = bucket.file(`files/${uniqueFilename}`);
-      const blobStream = blob.createWriteStream();
-  
-      blobStream.on('error', (err) => {
-        console.error('Error uploading file:', err);
-        return res.status(500).send('Internal Server Error');
-      });
-  
-      blobStream.on('finish', async () => {
-        // Get the download URL of the uploaded file
-        const downloadURL = await blob.getSignedUrl({
-          action: 'read',
-          expires: '03-01-2500' // Adjust the expiry date as needed
-        });
-  
-        // Save the file details in Firestore or perform any other required operations
-        // ...
-        
-        return res.status(200).send(`File added successfully with URL: ${downloadURL}`);
-      });
-  
-      blobStream.end(file.buffer);
-    } catch (error) {
-      console.error('Error adding file:', error);
+  try {
+    const { filename, user, description, category } = req.body;
+    const file = req.file;
+    const augmentedCategory = category || "default" 
+    console.log(augmentedCategory, category)
+     
+    // Generate a unique filename using UUID
+    const uniqueFilename = `${`${filename}_${augmentedCategory}_${user}_${uuidv4()}`}_ `;
+
+    // Upload the file to Firebase Storage
+    const blob = bucket.file(`files/${uniqueFilename}`);
+    const blobStream = blob.createWriteStream();
+
+    blobStream.on('error', (err) => {
+      console.error('Error uploading file:', err);
       return res.status(500).send('Internal Server Error');
-    }
-  });
+    });
 
-  async function listFiles() {
-    try {
-      const [files] = await admin.storage().bucket().getFiles({
-        prefix: "files/"
+    blobStream.on('finish', async () => {
+      // Get the download URL of the uploaded file
+      const downloadURL = await blob.getSignedUrl({
+        action: 'read',
+        expires: '03-01-2500' // Adjust the expiry date as needed
       });
-  
-      console.log("Files in the folder:");
-      files.forEach(file => {
-        console.log(file.name);
-      });
-    } catch (error) {
-      console.error("Error listing files:", error);
-    }
+      
+      return res.status(200).send(`File added successfully with URL: ${downloadURL}`);
+    });
+
+    blobStream.end(file.buffer);
+  } catch (error) {
+    console.error('Error adding file:', error);
+    return res.status(500).send('Internal Server Error');
   }
-  
-  // Call the function to list files
-  listFiles();
-  
-
-  // app.get('/', async (req, res) => {
-//     try {
-//         let response = [];
-
-//         const querySnapshot = await filesCollection.get();
-//         querySnapshot.forEach((doc) => {
-//             response.push(doc.data());
-//         });
-
-//         // Render the "index.ejs" file and pass the response data to it
-//         res.render('index', { files: response });
-//     } catch (error) {
-//         res.status(500).send(error);
-//     }
-// });
-
- 
-  
-// Serve static files from the "public" directory
- 
-// app.get("/", async (req, res) => {
-//   try {
-//     let response = [];
-
-//     const querySnapshot = await filesCollection.get();
-//     querySnapshot.forEach((doc) => {
-//       response.push(doc.data());
-//     });
-//     return  res.sendFile('index.html', { root: './public' });
-//     // return res.status(200).send(response);
-//   } catch (error) {
-//     return res.status(500).send(error);
-//   }
-// });
+});
 
   app.put('/update', async (req, res) => {
     try {
@@ -224,8 +146,41 @@ app.post('/add', upload.single('file'), async (req, res) => {
     }
   });
   
+  async function listFiles() {
+    try {
+      const [files] = await admin.storage().bucket().getFiles({
+        prefix: "files/"
+      });
+  
+      console.log("Files in the folder:");
+      files.forEach(file => {
+        console.log(file.name);
+      });
+    } catch (error) {
+      console.error("Error listing files:", error);
+    }
+  }  
+  // Call the function to list files
+  listFiles();
+
    const PORT = 5000;//dont change this
 
    app.listen(PORT, ()=>{
     console.log(`Server is runnning on port https//localhost:${PORT}`)
    })
+
+
+   // app.get("/", async (req, res) => {
+//   try {
+//     let response = [];
+
+//     const querySnapshot = await filesCollection.get();
+//     querySnapshot.forEach((doc) => {
+//       response.push(doc.data());
+//     });
+//     return  res.sendFile('index.html', { root: './public' });
+//     // return res.status(200).send(response);
+//   } catch (error) {
+//     return res.status(500).send(error);
+//   }
+// });

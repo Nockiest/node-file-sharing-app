@@ -7,6 +7,8 @@ const admin = require("firebase-admin");
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const { getDownloadURL, ref } = require('firebase/storage');
+const cors = require('cors');
+require('dotenv').config();
 var serviceAccount = require("./config.json");
 
 admin.initializeApp({
@@ -25,7 +27,7 @@ const storageRef = admin.storage().bucket();
 const bucket = admin.storage().bucket();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
- 
+app.use(cors());
  
 app.get("/gallery", async (req, res) => {
   try {
@@ -163,7 +165,7 @@ app.post('/add', upload.single('file'), async (req, res) => {
   // Call the function to list files
   listFiles();
 
-   const PORT = 5000;//dont change this
+   const PORT = 5000 || process.env.PORT;//dont change this
 
    app.listen(PORT, ()=>{
     console.log(`Server is runnning on port https//localhost:${PORT}`)

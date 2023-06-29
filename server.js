@@ -59,7 +59,17 @@ app.get("/gallery", async (req, res) => {
   }
 });
 
-
+app.get("/test", async (req, res) => {
+  try {
+    
+ 
+    
+    res.send("hello"); // Send the dynamically generated HTML content as the response
+  } catch (error) {
+    console.error("Error fetching image URLs:", error);
+    res.status(500).send("Internal Server Error");
+  }
+})
 app.post('/add', upload.single('file'), async (req, res) => {
   try {
     const { filename, user, description, category } = req.body;
